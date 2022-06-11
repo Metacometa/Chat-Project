@@ -4,14 +4,21 @@
 #include <winsock.h>
 #include <stdio.h>
 #include <Windows.h>
+#include <string.h>
 
 pthread_mutex_t mutex;
 pthread_mutex_t mutex_file;
 
-void* ClientStart(void* param)
+typedef struct ClientsProfile {
+	char name[100];
+	SOCKET socket;
+}CLPR;
+
+
+void* TakingInput(void* param)
 {
 	SOCKET client = (SOCKET)param;
-	char recieve[256], transmit[256];
+	char recieve[256];
 	int ret;
 	while (1) {
 		ret = recv(client, recieve, 256, 0);
@@ -31,9 +38,27 @@ void* ClientStart(void* param)
 		printf("%s (recieved)\n", recieve);
 		//pthread_mutex_unlock(&mutex_file);
 		//pthread_mutex_unlock(&mutex);
-		sprintf_s(transmit, "%s\n", "Your data is recieved!");
-		//Sleep(2000);
-		ret = send(client, transmit, sizeof(transmit), 0);
+	}
+	return (void*)0;
+}
+void* ClientControl(void* param)
+{
+	CLPR *ClientsArray = (CLPR *)param;
+	char transmit[256] = { 0 };
+	int ret=0;
+	int clientcount = 0;
+	while (ClientsArray[clientcount].name[0]!=0) {
+		clientcount++;
+	}
+	while (1) {
+		gets_s(transmit);
+		transmit[strlen(transmit)] = 0;
+		if (strcmp("/exit", transmit) == 0) {
+			return (void*)0;
+		}
+		if (transmit[0] != 0) {
+			ret = send(ClientsArray[0].socket, transmit, strlen(transmit), 0);
+		}
 		if (ret == SOCKET_ERROR)
 		{
 			//pthread_mutex_lock(&mutex);
@@ -41,17 +66,17 @@ void* ClientStart(void* param)
 			printf("Error sending data\n");
 			//pthread_mutex_unlock(&mutex_file);
 			//pthread_mutex_unlock(&mutex);
-			return (void*)2;
+			return (void*)1;
 		}
-		if (strcmp("/exit", recieve) == 0) {
-			break;
+		for (int i = 0; i < 256; i++) {
+			transmit[i] = 0;
 		}
 	}
-	return (void*)0;
 }
-
 int CreateServer()
 {
+	CLPR ClientsArray[50] = { 0 };
+	int ClientsCount = 0;
 	SOCKET server, client;
 	sockaddr_in localaddr, clientaddr;
 	int size;
@@ -76,11 +101,23 @@ int CreateServer()
 	listen(server, 50);//50 клиентов в очереди могут стоять
 	//pthread_mutex_init(&mutex, NULL);
 	//pthread_mutex_init(&mutex_file, NULL);
+	pthread_t Control;
+	int status = pthread_create(&Control, NULL, ClientControl, (void*)ClientsArray);
+	pthread_detach(Control);
 	while (1)
 	{
 		size = sizeof(clientaddr);
 		client = accept(server, (sockaddr*)&clientaddr, &size);
 
+		CLPR temp = { {0},client };
+		char transmit[256] = { 0 };
+		sprintf_s(transmit, "%s", "Enter your name:\n");
+		int ret = send(client, transmit, sizeof(transmit), 0);
+		char recieve[256] = { 0 };
+		ret = recv(client, recieve, 256, 0);
+		printf("IP address is: %s\n", inet_ntoa(clientaddr.sin_addr));
+		strcpy_s(temp.name, recieve);
+		ClientsArray[ClientsCount++] = temp;
 		if (client == INVALID_SOCKET)
 		{
 			printf("Error accept client\n");
@@ -90,9 +127,11 @@ int CreateServer()
 		{
 			printf("Client is accepted\n");
 		}
-		pthread_t mythread;
-		int status = pthread_create(&mythread, NULL, ClientStart, (void*)client);
-		pthread_detach(mythread);
+		pthread_t Input;
+		//u_long iMode = 0;
+		//ioctlsocket(client, FIONBIO, &iMode);
+		int status = pthread_create(&Input, NULL, TakingInput, (void*)client);
+		pthread_detach(Input);
 	}
 	pthread_mutex_destroy(&mutex_file);
 	pthread_mutex_destroy(&mutex);
