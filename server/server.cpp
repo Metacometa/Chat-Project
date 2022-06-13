@@ -43,11 +43,11 @@ void* TakingInput(void* param)
 }
 void* ClientControl(void* param)
 {
-	CLPR *ClientsArray = (CLPR *)param;
+	CLPR* ClientsArray = (CLPR*)param;
 	char transmit[256] = { 0 };
-	int ret=0;
+	int ret = 0;
 	int clientcount = 0;
-	while (ClientsArray[clientcount].name[0]!=0) {
+	while (ClientsArray[clientcount].name[0] != 0) {
 		clientcount++;
 	}
 	while (1) {
