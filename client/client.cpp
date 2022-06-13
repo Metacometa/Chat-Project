@@ -6,16 +6,21 @@
 #include <stdio.h>
 #include <string.h>
 
+char nickname[100] = { 0 };
+
 void* SendData2Server(void* param)
 {
 	SOCKET client = (SOCKET)param;
 	char mes[256] = { 0 };
+	char mes_copy[256] = { 0 };
 	while (1) {
 		gets_s(mes);
+		strcpy(mes_copy, mes);
 		if (strcmp(mes, "/exit") == 0) {
 			printf("Session is closed\n");
 			return (void*)0;
 		}
+		sprintf_s(mes, "[%s] %s", nickname, mes_copy);
 		int ret = send(client, mes, strlen(mes), 0);
 		if (ret == SOCKET_ERROR)
 		{
@@ -76,6 +81,7 @@ int main()
 		message[i] = 0;
 	}
 	gets_s(message);
+	strcpy(nickname, message);
 	ret = send(client, message, strlen(message), 0);
 	for (int i = 0; i < 256; i++) {
 		message[i] = 0;

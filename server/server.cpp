@@ -14,6 +14,7 @@ typedef struct ClientsProfile {
 	SOCKET socket;
 }CLPR;
 
+int ClientsCount = 0;
 
 void* TakingInput(void* param)
 {
@@ -45,19 +46,29 @@ void* ClientControl(void* param)
 {
 	CLPR* ClientsArray = (CLPR*)param;
 	char transmit[256] = { 0 };
-	int ret = 0;
-	int clientcount = 0;
-	while (ClientsArray[clientcount].name[0] != 0) {
+	int ret;
+	int clientcount = ClientsCount - 1;
+	/*while (ClientsArray[clientcount].name[0]!=0) {
 		clientcount++;
-	}
+	}*/
 	while (1) {
-		gets_s(transmit);
-		transmit[strlen(transmit)] = 0;
+
+		ret = recv(ClientsArray[clientcount].socket, transmit, 256, 0);
+		//transmit[strlen(transmit)] = 0;
+		/*
 		if (strcmp("/exit", transmit) == 0) {
 			return (void*)0;
-		}
+		}*/
+		//printf("%s online now\n", transmit);
 		if (transmit[0] != 0) {
-			ret = send(ClientsArray[0].socket, transmit, strlen(transmit), 0);
+
+			for (int i = 0; i < ClientsCount; i++)
+			{
+				if (i != clientcount)
+					ret = send(ClientsArray[i].socket, transmit, strlen(transmit), 0);
+			}
+			printf("%d online now\n", ClientsCount);
+
 		}
 		if (ret == SOCKET_ERROR)
 		{
@@ -76,7 +87,7 @@ void* ClientControl(void* param)
 int CreateServer()
 {
 	CLPR ClientsArray[50] = { 0 };
-	int ClientsCount = 0;
+
 	SOCKET server, client;
 	sockaddr_in localaddr, clientaddr;
 	int size;
@@ -101,9 +112,7 @@ int CreateServer()
 	listen(server, 50);//50 клиентов в очереди могут стоять
 	//pthread_mutex_init(&mutex, NULL);
 	//pthread_mutex_init(&mutex_file, NULL);
-	pthread_t Control;
-	int status = pthread_create(&Control, NULL, ClientControl, (void*)ClientsArray);
-	pthread_detach(Control);
+
 	while (1)
 	{
 		size = sizeof(clientaddr);
@@ -115,8 +124,10 @@ int CreateServer()
 		int ret = send(client, transmit, sizeof(transmit), 0);
 		char recieve[256] = { 0 };
 		ret = recv(client, recieve, 256, 0);
-		printf("IP address is: %s\n", inet_ntoa(clientaddr.sin_addr));
-		strcpy_s(temp.name, recieve);
+		//sprintf_s(transmit, "%s", "Ok,\n");
+		//ret = send(client, transmit, strlen(transmit), 0);
+		//printf("IP address is: %s\n", inet_ntoa(clientaddr.sin_addr));
+		//strcpy_s(temp.name, recieve);
 		ClientsArray[ClientsCount++] = temp;
 		if (client == INVALID_SOCKET)
 		{
@@ -127,11 +138,14 @@ int CreateServer()
 		{
 			printf("Client is accepted\n");
 		}
-		pthread_t Input;
+		//pthread_t Input;
 		//u_long iMode = 0;
 		//ioctlsocket(client, FIONBIO, &iMode);
-		int status = pthread_create(&Input, NULL, TakingInput, (void*)client);
-		pthread_detach(Input);
+		//int status = pthread_create(&Input, NULL, TakingInput, (void*)client);
+		//pthread_detach(Input);
+		pthread_t Control;
+		int status = pthread_create(&Control, NULL, ClientControl, (void*)ClientsArray);
+
 	}
 	pthread_mutex_destroy(&mutex_file);
 	pthread_mutex_destroy(&mutex);
