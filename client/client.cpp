@@ -20,7 +20,7 @@ void* SendData2Server(void* param)
 			printf("Session is closed\n");
 			return (void*)0;
 		}
-		sprintf_s(mes, "[%s] %s", nickname, mes_copy);
+		sprintf_s(mes, "[%s]: %s\n", nickname, mes_copy);
 		int ret = send(client, mes, strlen(mes), 0);
 		if (ret == SOCKET_ERROR)
 		{
@@ -43,7 +43,7 @@ void* GetDataFromServer(void* param)
 			return (void*)1;
 		}
 		mes[ret] = '\0';
-		printf("%s\n", mes);
+		printf("%s", mes);
 	}
 }
 
@@ -86,10 +86,15 @@ int main()
 	for (int i = 0; i < 256; i++) {
 		message[i] = 0;
 	}
+	ret = recv(client, message, sizeof(message), 0);
+	printf("%s", message);
 	pthread_t Input;
 	pthread_t Output;
 	int status = pthread_create(&Input, NULL, SendData2Server, (void*)client);
 	int controlling = pthread_create(&Output, NULL, GetDataFromServer, (void*)client);
+
+
+
 	status = pthread_join(Input, NULL);
 	pthread_detach(Input);
 	pthread_detach(Output);

@@ -12,6 +12,7 @@ pthread_mutex_t mutex_file;
 typedef struct ClientsProfile {
 	char name[100];
 	SOCKET socket;
+	int logged_in;
 }CLPR;
 
 int ClientsCount = 0;
@@ -48,26 +49,54 @@ void* ClientControl(void* param)
 	char transmit[256] = { 0 };
 	int ret;
 	int clientcount = ClientsCount - 1;
+	char recieve[256] = { 0 };
+	//char transmit[256] = { 0 };
+	sprintf_s(transmit, "%s", "Enter your name:\n");
+	ret = send(ClientsArray[clientcount].socket, transmit, sizeof(transmit), 0);
+	for (int i = 0; i < 256; i++)
+		transmit[i] = 0;
+	//Здесь будет проверка в базе данных имени
+
+	strcpy_s(ClientsArray[clientcount].name, recieve);
+
+	ret = recv(ClientsArray[clientcount].socket, recieve, 256, 0);
+	sprintf_s(transmit, "%s has entered to the chat", recieve);
+	printf("%s\n", transmit);
+	for (int i = 0; i < 256; i++)
+		transmit[i] = '\0';
+
+	sprintf_s(transmit, "Welcome to the chat!\n");
+	ret = send(ClientsArray[clientcount].socket, transmit, sizeof(transmit), 0);
+	ClientsArray[clientcount].logged_in = 1;
+	for (int i = 0; i < 256; i++)
+		transmit[i] = '\0';
+
 	/*while (ClientsArray[clientcount].name[0]!=0) {
 		clientcount++;
 	}*/
 	while (1) {
 
 		ret = recv(ClientsArray[clientcount].socket, transmit, 256, 0);
+		printf("%s", transmit);
 		//transmit[strlen(transmit)] = 0;
 		/*
 		if (strcmp("/exit", transmit) == 0) {
 			return (void*)0;
 		}*/
 		//printf("%s online now\n", transmit);
+
+
 		if (transmit[0] != 0) {
 
 			for (int i = 0; i < ClientsCount; i++)
 			{
-				if (i != clientcount)
+				if (i != clientcount && ClientsArray[i].logged_in == 1)
 					ret = send(ClientsArray[i].socket, transmit, strlen(transmit), 0);
 			}
-			printf("%d online now\n", ClientsCount);
+			for (int i = 0; i < 256; i++) {
+				transmit[i] = 0;
+			}
+			//printf("%d online now\n", ClientsCount);
 
 		}
 		if (ret == SOCKET_ERROR)
@@ -79,9 +108,7 @@ void* ClientControl(void* param)
 			//pthread_mutex_unlock(&mutex);
 			return (void*)1;
 		}
-		for (int i = 0; i < 256; i++) {
-			transmit[i] = 0;
-		}
+
 	}
 }
 int CreateServer()
@@ -118,12 +145,8 @@ int CreateServer()
 		size = sizeof(clientaddr);
 		client = accept(server, (sockaddr*)&clientaddr, &size);
 
-		CLPR temp = { {0},client };
-		char transmit[256] = { 0 };
-		sprintf_s(transmit, "%s", "Enter your name:\n");
-		int ret = send(client, transmit, sizeof(transmit), 0);
-		char recieve[256] = { 0 };
-		ret = recv(client, recieve, 256, 0);
+		CLPR temp = { {0},client, {0} };
+		
 		//sprintf_s(transmit, "%s", "Ok,\n");
 		//ret = send(client, transmit, strlen(transmit), 0);
 		//printf("IP address is: %s\n", inet_ntoa(clientaddr.sin_addr));
@@ -145,7 +168,7 @@ int CreateServer()
 		//pthread_detach(Input);
 		pthread_t Control;
 		int status = pthread_create(&Control, NULL, ClientControl, (void*)ClientsArray);
-
+		pthread_detach(Control);
 	}
 	pthread_mutex_destroy(&mutex_file);
 	pthread_mutex_destroy(&mutex);
