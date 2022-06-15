@@ -20,7 +20,7 @@ void* SendData2Server(void* param)
 			printf("Session is closed\n");
 			return (void*)0;
 		}
-		sprintf_s(mes, "[%s]: %s\n", nickname, mes_copy);
+		sprintf_s(mes, "%s\n",mes_copy);
 		int ret = send(client, mes, strlen(mes), 0);
 		if (ret == SOCKET_ERROR)
 		{
@@ -81,8 +81,47 @@ int main()
 		message[i] = 0;
 	}
 	gets_s(message);
-	strcpy(nickname, message);
+	//проверка, вдруг этот логин онлайн
 	ret = send(client, message, strlen(message), 0);
+
+	//логгининг
+	ret = recv(client, message, sizeof(message), 0);
+	printf("%s", message);
+	while (strcmp(message, "Accepted\n") != 0)
+	{
+		printf("%s", message);
+		gets_s(message);
+		ret = send(client, message, strlen(message), 0);
+		ret = recv(client, message, sizeof(message), 0);
+	}
+	printf("%s", message);
+
+	if (strcmp(message, "You have not been registered. Come up with a password:\n") == 0)
+	{
+		gets_s(message);
+		ret = send(client, message, strlen(message), 0);
+		ret = recv(client, message, sizeof(message), 0);
+		printf("%s", message);
+	}
+	else if (strcmp(message, "Please, enter your password:\n") == 0)
+	{
+		gets_s(message);
+		ret = send(client, message, strlen(message), 0);
+		ret = recv(client, message, sizeof(message), 0);
+		while (strcmp(message, "You have succesfully logged in:\n") != 0)
+		{
+			printf("%s", message);
+			gets_s(message);
+			ret = send(client, message, strlen(message), 0);
+			ret = recv(client, message, sizeof(message), 0);
+
+		}
+
+		printf("%s", message);
+	}
+
+	strcpy(nickname, message);
+
 	for (int i = 0; i < 256; i++) {
 		message[i] = 0;
 	}

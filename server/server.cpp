@@ -1,5 +1,6 @@
 ﻿#define HAVE_STRUCT_TIMESPEC
 #pragma comment(lib, "ws2_32.lib")
+#define _CRT_SECURE_NO_WARNINGS
 #include <pthread.h>
 #include <winsock.h>
 #include <stdio.h>
@@ -10,7 +11,7 @@ pthread_mutex_t mutex;
 pthread_mutex_t mutex_file;
 
 typedef struct ClientsProfile {
-	char name[100];
+	char nickname[256];
 	SOCKET socket;
 	int logged_in;
 }CLPR;
@@ -47,52 +48,195 @@ void* ClientControl(void* param)
 {
 	CLPR* ClientsArray = (CLPR*)param;
 	char transmit[256] = { 0 };
+	char entered_nickname[256] = { 0 };
+	char entered_password[256] = { 0 };
 	int ret;
-	int clientcount = ClientsCount - 1;
+	int client_id = ClientsCount - 1;
 	char recieve[256] = { 0 };
 	//char transmit[256] = { 0 };
 	sprintf_s(transmit, "%s", "Enter your name:\n");
-	ret = send(ClientsArray[clientcount].socket, transmit, sizeof(transmit), 0);
+	ret = send(ClientsArray[client_id].socket, transmit, sizeof(transmit), 0);
 	for (int i = 0; i < 256; i++)
 		transmit[i] = 0;
-	//Здесь будет проверка в базе данных имени
+	//Здесь будет проверка логина в базе данных 
 
-	strcpy_s(ClientsArray[clientcount].name, recieve);
+	FILE* fin;
+	fin = fopen("passwords.txt", "r");
+	char parser[256] = { 0 };
+	int flag_logging = 2;//0 новый человек, 1 уже регистрировлася, 2, такой ник уже онлайн
+	char real_nickname[256] = { 0 };
+	char real_password[256] = { 0 };
 
-	ret = recv(ClientsArray[clientcount].socket, recieve, 256, 0);
-	sprintf_s(transmit, "%s has entered to the chat", recieve);
+	while (flag_logging == 2)
+	{
+		ret = recv(ClientsArray[client_id].socket, entered_nickname, 256, 0);
+		flag_logging = 0;
+		for (int i = 0; i < 50; i++)
+		{
+			if (strcmp(entered_nickname, ClientsArray[i].nickname) == 0)
+				flag_logging = 2;
+		}
+		if (flag_logging != 2)
+		{
+
+			sprintf_s(transmit, "Accepted\n");
+			ret = send(ClientsArray[client_id].socket, transmit, sizeof(transmit), 0);
+			break;
+		}
+		printf("Copy of User{%s} are attempting to log in\n", entered_nickname);
+		sprintf_s(transmit, "%s is already online. Enter another nickname:\n", entered_nickname);
+		ret = send(ClientsArray[client_id].socket, transmit, sizeof(transmit), 0);
+	}
+
+	while (NULL != fgets(parser, 256, fin))
+	{
+
+		for (int i = 0; i < strlen(entered_nickname); i++)
+		{
+			real_nickname[i] = parser[i];
+		}
+
+		for (int i = strlen(entered_nickname) + 1; parser[i] != '\0' && parser[i] != '\n'; i++)
+		{
+			real_password[i - (strlen(entered_nickname) + 1)] = parser[i];
+		}
+		if (strcmp(real_nickname, entered_nickname) == 0)
+		{
+			flag_logging = 1;
+			break;
+		}
+		for (int i = 0; i < 256; i++)
+		{
+			parser[i] = '\0';
+			real_password[i] = '\0';
+			real_nickname[i] = '\0';
+		}
+
+
+	}
+
+	if (flag_logging == 0)
+	{
+		printf("A new user{%s} are registering\n", entered_nickname);
+		sprintf_s(transmit, "%s", "You have not been registered. Come up with a password:\n");
+		ret = send(ClientsArray[client_id].socket, transmit, sizeof(transmit), 0);
+
+		fclose(fin);
+		fin = fopen("passwords.txt", "a");
+
+		ret = recv(ClientsArray[client_id].socket, entered_password, 256, 0);
+		char new_pass[256] = { 0 };
+		sprintf_s(new_pass, "%s %s\n", entered_nickname, entered_password);
+		fprintf(fin, new_pass);
+		fclose(fin);
+
+		printf("A new user{%s} has been registered\n", entered_nickname);
+		sprintf_s(transmit, "%s", "Password created:\n");
+		ret = send(ClientsArray[client_id].socket, transmit, sizeof(transmit), 0);
+	}
+	else if (flag_logging == 1)
+	{
+		printf("User{%s} are attempting to log in\n", entered_nickname);
+		sprintf_s(transmit, "%s", "Please, enter your password:\n");
+		ret = send(ClientsArray[client_id].socket, transmit, sizeof(transmit), 0);
+	
+		ret = recv(ClientsArray[client_id].socket, entered_password, 256, 0);
+		while (strcmp(entered_password, real_password) != 0)
+		{
+			printf("User{%s} failed to log in\n", entered_nickname);
+			printf("%s vs %s\n", real_password, entered_password);
+			sprintf_s(transmit, "%s", "Wrong password. Try again:\n");
+			ret = send(ClientsArray[client_id].socket, transmit, sizeof(transmit), 0);
+			ret = recv(ClientsArray[client_id].socket, entered_password, 256, 0);
+		}
+		sprintf_s(transmit, "%s", "You have succesfully logged in:\n");
+		ret = send(ClientsArray[client_id].socket, transmit, sizeof(transmit), 0);
+
+	}
+
+
+
+	//вносим логин в массив клиентов
+	strcpy_s(ClientsArray[client_id].nickname, entered_nickname);
+
+	sprintf_s(transmit, "%s has entered to the chat", ClientsArray[client_id].nickname);
 	printf("%s\n", transmit);
 	for (int i = 0; i < 256; i++)
 		transmit[i] = '\0';
 
-	sprintf_s(transmit, "Welcome to the chat!\n");
-	ret = send(ClientsArray[clientcount].socket, transmit, sizeof(transmit), 0);
-	ClientsArray[clientcount].logged_in = 1;
+	sprintf_s(transmit, "\n=====================\nWelcome to the chat!\n/all for writing in group chat\n/online for find out who is online\n=====================\n\n");
+	ret = send(ClientsArray[client_id].socket, transmit, sizeof(transmit), 0);
+
+	ClientsArray[client_id].logged_in = 1;
+
 	for (int i = 0; i < 256; i++)
 		transmit[i] = '\0';
 
-	/*while (ClientsArray[clientcount].name[0]!=0) {
-		clientcount++;
-	}*/
 	while (1) {
 
-		ret = recv(ClientsArray[clientcount].socket, transmit, 256, 0);
-		printf("%s", transmit);
+		ret = recv(ClientsArray[client_id].socket, transmit, 256, 0);
 		//transmit[strlen(transmit)] = 0;
-		/*
+	
 		if (strcmp("/exit", transmit) == 0) {
 			return (void*)0;
-		}*/
+		}
 		//printf("%s online now\n", transmit);
 
-
-		if (transmit[0] != 0) {
-
-			for (int i = 0; i < ClientsCount; i++)
+		if (transmit[0] != 0)
+		{
+			if (strstr(transmit, "/all ") != 0)
 			{
-				if (i != clientcount && ClientsArray[i].logged_in == 1)
-					ret = send(ClientsArray[i].socket, transmit, strlen(transmit), 0);
+				//int ptr = strstr(transmit, "/all");
+				char mes[256] = { 0 };
+				for (int i = 5; transmit[i] != 0; i++)
+					mes[i - 5] = transmit[i];
+				sprintf_s(transmit, "[ALL] [%s]: %s", ClientsArray[client_id].nickname, mes);
+				printf("%s", transmit);
+				for (int i = 0; i < ClientsCount; i++)
+				{
+					if (i != client_id && ClientsArray[i].logged_in == 1)
+						ret = send(ClientsArray[i].socket, transmit, strlen(transmit), 0);
+				}
 			}
+			else if (strstr(transmit, "/online") != 0)
+			{
+				char list[256] = { 0 };
+				int online = 0;
+				for (int i = 0; i < 50; i++)
+				{
+					if (ClientsArray[i].logged_in == 1 && ClientsArray[i].nickname[0] != '\0')
+					{
+						online++;
+					}
+				}
+				sprintf_s(list, "\n=====================\nOnline now: %d user/s\n", online);
+				int index = 0;
+				for (int i = 0; i < 50; i++)
+				{
+					if (ClientsArray[i].logged_in == 1 && ClientsArray[i].nickname[0] != '\0')
+					{
+						char temp[256] = { 0 };
+						
+						sprintf_s(temp, "User %c: ", index + 49);
+						strcat_s(list, temp);
+						strcat_s(list, ClientsArray[i].nickname);
+						strcat_s(list, "\n");
+						index++;
+					}
+				}
+				strcat_s(list, "=====================\n\n");
+				ret = send(ClientsArray[client_id].socket, list, strlen(list), 0);
+			}
+			else
+			{
+				for (int i = 0; i < 256; i++) 
+				{
+					transmit[i] = 0;
+				}
+				sprintf_s(transmit, "Uknown command\n");
+				ret = send(ClientsArray[client_id].socket, transmit, strlen(transmit), 0);
+			}
+
 			for (int i = 0; i < 256; i++) {
 				transmit[i] = 0;
 			}
@@ -101,11 +245,10 @@ void* ClientControl(void* param)
 		}
 		if (ret == SOCKET_ERROR)
 		{
-			//pthread_mutex_lock(&mutex);
-			//pthread_mutex_lock(&mutex_file);
 			printf("Error sending data\n");
-			//pthread_mutex_unlock(&mutex_file);
-			//pthread_mutex_unlock(&mutex);
+			ClientsArray[client_id] = { 0 };
+			ClientsCount--;
+			
 			return (void*)1;
 		}
 
@@ -137,8 +280,6 @@ int CreateServer()
 		printf("Server is started\n");
 	}
 	listen(server, 50);//50 клиентов в очереди могут стоять
-	//pthread_mutex_init(&mutex, NULL);
-	//pthread_mutex_init(&mutex_file, NULL);
 
 	while (1)
 	{
@@ -146,11 +287,7 @@ int CreateServer()
 		client = accept(server, (sockaddr*)&clientaddr, &size);
 
 		CLPR temp = { {0},client, {0} };
-		
-		//sprintf_s(transmit, "%s", "Ok,\n");
-		//ret = send(client, transmit, strlen(transmit), 0);
-		//printf("IP address is: %s\n", inet_ntoa(clientaddr.sin_addr));
-		//strcpy_s(temp.name, recieve);
+	
 		ClientsArray[ClientsCount++] = temp;
 		if (client == INVALID_SOCKET)
 		{
@@ -161,11 +298,7 @@ int CreateServer()
 		{
 			printf("Client is accepted\n");
 		}
-		//pthread_t Input;
-		//u_long iMode = 0;
-		//ioctlsocket(client, FIONBIO, &iMode);
-		//int status = pthread_create(&Input, NULL, TakingInput, (void*)client);
-		//pthread_detach(Input);
+
 		pthread_t Control;
 		int status = pthread_create(&Control, NULL, ClientControl, (void*)ClientsArray);
 		pthread_detach(Control);
