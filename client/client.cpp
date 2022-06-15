@@ -91,7 +91,7 @@ int main()
 	{
 		ret = recv(client, message, sizeof(message), 0);
 		printf("%s", message);
-		if (strcmp(message, "Accepted\n") == 0)
+		if (strcmp(message, "Accepted!\n") == 0)
 			break;
 		gets_s(message);
 		ret = send(client, message, strlen(message), 0);
@@ -111,7 +111,7 @@ int main()
 		gets_s(message);
 		ret = send(client, message, strlen(message), 0);
 		ret = recv(client, message, sizeof(message), 0);
-		while (strcmp(message, "You have succesfully logged in:\n") != 0)
+		while (strcmp(message, "You have succesfully logged in!\n") != 0)
 		{
 			printf("%s", message);
 			gets_s(message);
@@ -130,6 +130,7 @@ int main()
 	}
 	ret = recv(client, message, sizeof(message), 0);
 	printf("%s", message);
+
 	pthread_t Input;
 	pthread_t Output;
 	int status = pthread_create(&Input, NULL, SendData2Server, (void*)client);
