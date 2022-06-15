@@ -195,7 +195,7 @@ void* ClientControl(void* param)
 	//вносим логин в массив клиентов
 	strcpy_s(ClientsArray[client_id].nickname, entered_nickname);
 
-	sprintf_s(transmit, "\n=====================\nWelcome to the chat!\n/all for writing in group chat\n/online for find out who is online\n/m=====================\n\n");
+	sprintf_s(transmit, "\n=====================\nWelcome to the chat!\n/all for writing in group chat\n/online for find out who is online\n/m to send private message\n=====================\n\n");
 	ret = send(ClientsArray[client_id].socket, transmit, sizeof(transmit), 0);
 
 	sprintf_s(transmit, "%s entered", ClientsArray[client_id].nickname);
