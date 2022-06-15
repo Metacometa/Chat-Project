@@ -6,16 +6,21 @@
 #include <stdio.h>
 #include <string.h>
 
+char nickname[100] = { 0 };
+
 void* SendData2Server(void* param)
 {
 	SOCKET client = (SOCKET)param;
 	char mes[256] = { 0 };
+	char mes_copy[256] = { 0 };
 	while (1) {
 		gets_s(mes);
+		strcpy(mes_copy, mes);
 		if (strcmp(mes, "/exit") == 0) {
 			printf("Session is closed\n");
 			return (void*)0;
 		}
+		sprintf_s(mes, "%s\n", mes_copy);
 		int ret = send(client, mes, strlen(mes), 0);
 		if (ret == SOCKET_ERROR)
 		{
@@ -38,7 +43,7 @@ void* GetDataFromServer(void* param)
 			return (void*)1;
 		}
 		mes[ret] = '\0';
-		printf("%s\n", mes);
+		printf("%s", mes);
 	}
 }
 
@@ -76,14 +81,63 @@ int main()
 		message[i] = 0;
 	}
 	gets_s(message);
+	//проверка, вдруг этот логин онлайн
 	ret = send(client, message, strlen(message), 0);
+
+	//логгининг
+	//ret = recv(client, message, sizeof(message), 0);
+	//printf("%s", message);
+	while (1)
+	{
+		ret = recv(client, message, sizeof(message), 0);
+		printf("%s", message);
+		if (strcmp(message, "Accepted!\n") == 0)
+			break;
+		gets_s(message);
+		ret = send(client, message, strlen(message), 0);
+	}
+	ret = recv(client, message, sizeof(message), 0);
+	printf("%s", message);
+
+	if (strcmp(message, "You have not been registered. Come up with a password:\n") == 0)
+	{
+		gets_s(message);
+		ret = send(client, message, strlen(message), 0);
+		ret = recv(client, message, sizeof(message), 0);
+		printf("%s", message);
+	}
+	else if (strcmp(message, "Please, enter your password:\n") == 0)
+	{
+		gets_s(message);
+		ret = send(client, message, strlen(message), 0);
+		ret = recv(client, message, sizeof(message), 0);
+		while (strcmp(message, "You have succesfully logged in!\n") != 0)
+		{
+			printf("%s", message);
+			gets_s(message);
+			ret = send(client, message, strlen(message), 0);
+			ret = recv(client, message, sizeof(message), 0);
+
+		}
+
+		printf("%s", message);
+	}
+
+	strcpy(nickname, message);
+
 	for (int i = 0; i < 256; i++) {
 		message[i] = 0;
 	}
+	ret = recv(client, message, sizeof(message), 0);
+	printf("%s", message);
+
 	pthread_t Input;
 	pthread_t Output;
 	int status = pthread_create(&Input, NULL, SendData2Server, (void*)client);
 	int controlling = pthread_create(&Output, NULL, GetDataFromServer, (void*)client);
+
+
+
 	status = pthread_join(Input, NULL);
 	pthread_detach(Input);
 	pthread_detach(Output);
