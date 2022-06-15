@@ -91,7 +91,7 @@ int main()
 	{
 		ret = recv(client, message, sizeof(message), 0);
 		printf("%s", message);
-		if (strcmp(message, "Accepted!\n") == 0)
+		if (strstr(message, "recived") != 0)
 			break;
 		gets_s(message);
 		ret = send(client, message, strlen(message), 0);
@@ -99,7 +99,7 @@ int main()
 	ret = recv(client, message, sizeof(message), 0);
 	printf("%s", message);
 
-	if (strcmp(message, "You have not been registered. Come up with a password:\n") == 0)
+	if (strcmp(message, "Please, set up a password:\n") == 0)
 	{
 		gets_s(message);
 		ret = send(client, message, strlen(message), 0);
@@ -111,7 +111,7 @@ int main()
 		gets_s(message);
 		ret = send(client, message, strlen(message), 0);
 		ret = recv(client, message, sizeof(message), 0);
-		while (strcmp(message, "You have succesfully logged in!\n") != 0)
+		while (strcmp(message, "You have logged in\n") != 0)
 		{
 			printf("%s", message);
 			gets_s(message);
