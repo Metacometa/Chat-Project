@@ -85,15 +85,18 @@ int main()
 	ret = send(client, message, strlen(message), 0);
 
 	//логгининг
-	ret = recv(client, message, sizeof(message), 0);
-	printf("%s", message);
-	while (strcmp(message, "Accepted\n") != 0)
+	//ret = recv(client, message, sizeof(message), 0);
+	//printf("%s", message);
+	while (1)
 	{
+		ret = recv(client, message, sizeof(message), 0);
 		printf("%s", message);
+		if (strcmp(message, "Accepted\n") == 0)
+			break;
 		gets_s(message);
 		ret = send(client, message, strlen(message), 0);
-		ret = recv(client, message, sizeof(message), 0);
 	}
+	ret = recv(client, message, sizeof(message), 0);
 	printf("%s", message);
 
 	if (strcmp(message, "You have not been registered. Come up with a password:\n") == 0)

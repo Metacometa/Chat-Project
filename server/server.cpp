@@ -67,30 +67,51 @@ void* ClientControl(void* param)
 	char real_nickname[256] = { 0 };
 	char real_password[256] = { 0 };
 
+	int nickname_used = 0;
 	while (flag_logging == 2)
 	{
+		if (ret == SOCKET_ERROR)
+		{
+			printf("Error sending data\n");
+			ClientsArray[client_id] = { 0 };
+			ClientsCount--;
+
+			return (void*)1;
+		}
 		ret = recv(ClientsArray[client_id].socket, entered_nickname, 256, 0);
-		flag_logging = 0;
+		nickname_used = 0;
 		for (int i = 0; i < 50; i++)
 		{
 			if (strcmp(entered_nickname, ClientsArray[i].nickname) == 0)
-				flag_logging = 2;
+				nickname_used = 1;
 		}
-		if (flag_logging != 2)
+		if (nickname_used == 0)
 		{
-
 			sprintf_s(transmit, "Accepted\n");
 			ret = send(ClientsArray[client_id].socket, transmit, sizeof(transmit), 0);
+			flag_logging = 0;
 			break;
 		}
 		printf("Copy of User{%s} are attempting to log in\n", entered_nickname);
 		sprintf_s(transmit, "%s is already online. Enter another nickname:\n", entered_nickname);
 		ret = send(ClientsArray[client_id].socket, transmit, sizeof(transmit), 0);
+		for (int i = 0; i < 256; i++)
+		{
+			entered_nickname[i] = '\0';
+			
+		}
 	}
 
 	while (NULL != fgets(parser, 256, fin))
 	{
+		if (ret == SOCKET_ERROR)
+		{
+			printf("Error sending data\n");
+			ClientsArray[client_id] = { 0 };
+			ClientsCount--;
 
+			return (void*)1;
+		}
 		for (int i = 0; i < strlen(entered_nickname); i++)
 		{
 			real_nickname[i] = parser[i];
@@ -143,10 +164,20 @@ void* ClientControl(void* param)
 		ret = recv(ClientsArray[client_id].socket, entered_password, 256, 0);
 		while (strcmp(entered_password, real_password) != 0)
 		{
+			if (ret == SOCKET_ERROR)
+			{
+				printf("Error sending data\n");
+				ClientsArray[client_id] = { 0 };
+				ClientsCount--;
+
+				return (void*)1;
+			}
 			printf("User{%s} failed to log in\n", entered_nickname);
 			printf("%s vs %s\n", real_password, entered_password);
 			sprintf_s(transmit, "%s", "Wrong password. Try again:\n");
 			ret = send(ClientsArray[client_id].socket, transmit, sizeof(transmit), 0);
+			for (int i = 0; i < 256; i++)
+				entered_password[i] = { 0 };
 			ret = recv(ClientsArray[client_id].socket, entered_password, 256, 0);
 		}
 		sprintf_s(transmit, "%s", "You have succesfully logged in:\n");
@@ -172,7 +203,8 @@ void* ClientControl(void* param)
 	for (int i = 0; i < 256; i++)
 		transmit[i] = '\0';
 
-	while (1) {
+	while (1) 
+	{
 
 		ret = recv(ClientsArray[client_id].socket, transmit, 256, 0);
 		//transmit[strlen(transmit)] = 0;
